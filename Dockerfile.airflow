@@ -1,0 +1,40 @@
+# Custom Airflow 3.1+ image with Astronomer Cosmos and isolated dbt + Elementary.
+# Cosmos (no dbt extra) lives in the Airflow env; dbt runs in /opt/airflow/dbt_venv
+# so pip does not resolve dbt against Airflow's pinned dependency graph.
+#
+# Airflow >= 3.1 is required by astronomer-cosmos 1.15 AF3 plugin
+# ("Cosmos AF3 plugin requires Airflow >= 3.1").
+
+FROM apache/airflow:3.1.8-python3.12
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+        libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+ARG AIRFLOW_CONSTRAINTS_URL="https://raw.githubusercontent.com/apache/airflow/constraints-3.1.8/constraints-3.12.txt"
+
+# Install Cosmos WITHOUT [dbt-postgres] — dbt stays in the isolated venv below.
+# Postgres provider is already in the base image; do not re-pin against constraints
+# unless you need a newer version.
+RUN pip install --no-cache-dir \
+    --constraint "${AIRFLOW_CONSTRAINTS_URL}" \
+    "astronomer-cosmos==1.15.1"
+
+# Isolated dbt + Elementary venv (Cosmos LOCAL + ExecutionConfig.dbt_executable_path)
+RUN python -m venv /opt/airflow/dbt_venv \
+    && /opt/airflow/dbt_venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/airflow/dbt_venv/bin/pip install --no-cache-dir \
+        "dbt-core==1.8.9" \
+        "dbt-postgres==1.8.2" \
+        "elementary-data[postgres]==0.16.1"
+
+# Do NOT prepend dbt_venv to PATH — otherwise `python` resolves to the venv
+# (no cosmos/airflow packages) and airflow-init fails with ModuleNotFoundError.
+ENV DBT_VENV_PATH=/opt/airflow/dbt_venv
+ENV DBT_EXECUTABLE=/opt/airflow/dbt_venv/bin/dbt

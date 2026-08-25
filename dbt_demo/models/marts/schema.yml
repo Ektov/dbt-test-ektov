@@ -1,0 +1,61 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: >
+      Order-line fact with calculated_total (order-level sum), is_high_value flag,
+      and product category for Elementary dimension anomalies.
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: item_id
+        tests:
+          - unique
+          - not_null
+      - name: calculated_total
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: order_date
+        tests:
+          - not_null
+    tests:
+      # Elementary volume anomalies on daily order volume
+      - elementary.volume_anomalies:
+          timestamp_column: order_date
+          time_bucket:
+            period: day
+            count: 1
+          sensitivity: 2.5
+          config:
+            severity: warn
+            store_failures: true
+      # Elementary dimension anomalies by product category
+      - elementary.dimension_anomalies:
+          timestamp_column: order_date
+          dimensions:
+            - category
+          time_bucket:
+            period: day
+            count: 1
+          sensitivity: 2.5
+          config:
+            severity: warn
+            store_failures: true
+
+  - name: dim_customers
+    description: Customer dimension with order aggregates
+    columns:
+      - name: user_id
+        tests:
+          - unique
+          - not_null
+      - name: total_orders
+        tests:
+          - not_null
+      - name: total_spent
+        tests:
+          - not_null

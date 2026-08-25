@@ -1,0 +1,28 @@
+# dbt profile for local PostgreSQL sandbox
+# Inside Docker/Airflow Cosmos generates its own profile from postgres_default.
+# For host-side dbt/edr: copy to ~/.dbt/profiles.yml or set DBT_PROFILES_DIR.
+
+demo_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: demo_db
+      schema: dbt_marts
+      threads: 4
+      keepalives_idle: 0
+    # Same warehouse; schema elementary is used by Elementary models via +schema
+    elementary:
+      type: postgres
+      host: localhost
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: demo_db
+      schema: elementary
+      threads: 4
+      keepalives_idle: 0

@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: stg_users
+    description: Cleaned users from raw_users (intentional DQ failures expected)
+    columns:
+      - name: user_id
+        description: User identifier — unique test WILL FAIL (duplicate user_id=1 in seeds)
+        tests:
+          - unique:
+              config:
+                store_failures: true
+                severity: warn
+          - not_null:
+              config:
+                store_failures: true
+                severity: warn
+      - name: email
+        description: Email — not_null WILL FAIL (empty email for user_id=9999)
+        tests:
+          - unique:
+              config:
+                store_failures: true
+                severity: warn
+          - not_null:
+              config:
+                store_failures: true
+                severity: warn
+      - name: country
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['active', 'inactive', 'pending', 'blocked']
+
+  - name: stg_products
+    description: Cleaned product catalog
+    columns:
+      - name: product_id
+        tests:
+          - unique
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: price
+        tests:
+          - not_null
+
+  - name: stg_orders
+    description: Cleaned orders — accepted_values WILL FAIL on invalid_unknown_status
+    columns:
+      - name: order_id
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_users')
+              field: user_id
+              config:
+                store_failures: true
+                severity: warn
+      - name: order_status
+        tests:
+          - accepted_values:
+              values: ['completed', 'pending', 'cancelled', 'returned']
+              config:
+                store_failures: true
+                severity: warn
+      - name: order_date
+        tests:
+          - not_null
+
+  - name: stg_order_items
+    description: Cleaned order line items
+    columns:
+      - name: item_id
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders')
+              field: order_id
+      - name: product_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: quantity
+        tests:
+          - not_null

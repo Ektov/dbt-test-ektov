@@ -1,0 +1,41 @@
+version: 2
+
+# Sources mirror seed tables for documentation / lineage.
+# Staging models use ref('raw_*') so Cosmos builds seed → staging task edges.
+sources:
+  - name: raw
+    description: Raw seed tables loaded into schema dbt_test (same as seeds)
+    database: demo_db
+    schema: dbt_test
+    tables:
+      - name: raw_users
+        description: Raw user records (contains intentional DQ issues)
+        columns:
+          - name: user_id
+          - name: email
+          - name: country
+          - name: status
+          - name: created_at
+      - name: raw_products
+        description: Product catalog
+        columns:
+          - name: product_id
+          - name: product_name
+          - name: category
+          - name: price
+      - name: raw_orders
+        description: Order headers (contains invalid order_status)
+        columns:
+          - name: order_id
+          - name: user_id
+          - name: order_date
+          - name: order_status
+          - name: total_amount
+      - name: raw_order_items
+        description: Order line items
+        columns:
+          - name: item_id
+          - name: order_id
+          - name: product_id
+          - name: quantity
+          - name: unit_price

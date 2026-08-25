@@ -1,0 +1,80 @@
+name: dbt_demo
+version: "1.0.0"
+config-version: 2
+profile: demo_dbt
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+flags:
+  send_anonymous_usage_stats: false
+  # Required by Elementary (dbt 1.8+) to collect failed-row samples
+  require_explicit_package_overrides_for_builtin_materializations: false
+
+vars:
+  elementary_full_refresh: false
+  mute_ensure_materialization_override: true
+  # Avoid flaky artifact-diff path; always replace artifact tables on upload
+  cache_artifacts: false
+  upload_artifacts_method: replace
+
+seeds:
+  dbt_demo:
+    +schema: dbt_test
+    +quote_columns: false
+    raw_users:
+      +column_types:
+        user_id: integer
+        email: varchar(255)
+        country: varchar(10)
+        status: varchar(50)
+        created_at: timestamp
+    raw_products:
+      +column_types:
+        product_id: integer
+        product_name: varchar(255)
+        category: varchar(100)
+        price: numeric(12,2)
+    raw_orders:
+      +column_types:
+        order_id: integer
+        user_id: integer
+        order_date: date
+        order_status: varchar(50)
+        total_amount: numeric(12,2)
+    raw_order_items:
+      +column_types:
+        item_id: integer
+        order_id: integer
+        product_id: integer
+        quantity: integer
+        unit_price: numeric(12,2)
+
+models:
+  dbt_demo:
+    +materialized: view
+    staging:
+      +schema: dbt_test
+      +materialized: view
+    marts:
+      +schema: dbt_marts
+      +materialized: table
+  # Elementary OSS tables → schema "elementary" (via macros/generate_schema_name.sql)
+  elementary:
+    +schema: elementary
+    +enabled: true
+    +materialized: table
+
+# CRITICAL: store invalid rows for every failing test (dbt 1.8+ key: data_tests)
+data_tests:
+  +store_failures: true
+  +schema: dbt_test_failures
+
+on-run-end:
+  - "{{ elementary.on_run_end() }}"

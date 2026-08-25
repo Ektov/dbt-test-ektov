@@ -1,0 +1,41 @@
+# Python / dbt / Docker / IDE
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.env
+.env.*
+!.env.example
+
+# dbt
+dbt_demo/target/
+dbt_demo/dbt_packages/
+dbt_demo/logs/
+dbt_demo/package-lock.yml
+target/
+dbt_packages/
+logs/
+edr_target/
+elementary_output/
+*.duckdb
+
+# Airflow
+airflow.db
+airflow.cfg
+webserver_config.py
+*.pid
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docker
+postgres_data/
