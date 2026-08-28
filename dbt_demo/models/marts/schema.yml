@@ -22,6 +22,11 @@ models:
       - name: order_date
         tests:
           - not_null
+      - name: updated_at
+        tests:
+          - freshness_custom:
+              max_hours: 1440
+
     tests:
       # Elementary volume anomalies on daily order volume
       - elementary.volume_anomalies:
@@ -45,6 +50,9 @@ models:
           config:
             severity: warn
             store_failures: true
+      - elementary.freshness_anomalies:
+          timestamp_column: updated_at
+          store_failures: true
 
   - name: dim_customers
     description: Customer dimension with order aggregates

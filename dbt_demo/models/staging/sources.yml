@@ -10,6 +10,11 @@ sources:
     tables:
       - name: raw_users
         description: Raw user records (contains intentional DQ issues)
+        loaded_at_field: created_at
+        freshness:
+          # Native dbt source freshness: max(created_at) must be within 3 years
+          warn_after: {count: 3, period: day}
+          error_after: {count: 1095, period: day}
         columns:
           - name: user_id
           - name: email

@@ -45,5 +45,6 @@ select
     case
         when sum(line_total) over (partition by order_id) >= 200 then true
         else false
-    end as is_high_value
+    end as is_high_value,
+    current_timestamp as updated_at
 from order_lines

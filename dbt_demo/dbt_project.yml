@@ -16,6 +16,9 @@ flags:
   send_anonymous_usage_stats: false
   # Required by Elementary (dbt 1.8+) to collect failed-row samples
   require_explicit_package_overrides_for_builtin_materializations: false
+  # Without this, on-run-end does not run for `dbt source freshness`,
+  # so elementary.dbt_source_freshness_results stays empty.
+  source_freshness_run_project_hooks: true
 
 vars:
   elementary_full_refresh: false
@@ -23,6 +26,7 @@ vars:
   # Avoid flaky artifact-diff path; always replace artifact tables on upload
   cache_artifacts: false
   upload_artifacts_method: replace
+  elementary_test_results_schema: "elementary"
 
 seeds:
   dbt_demo:
@@ -65,16 +69,19 @@ models:
     marts:
       +schema: dbt_marts
       +materialized: table
-  # Elementary OSS tables → schema "elementary" (via macros/generate_schema_name.sql)
+  # Elementary OSS tables → schema "elementary" (via macros/generate_schema_name.sql).
+  # Do NOT override +materialized: table — package uses incremental; table wipe history
+  # and breaks anomaly temp-table handoff into on-run-end under concurrency.
   elementary:
     +schema: elementary
     +enabled: true
-    +materialized: table
 
 # CRITICAL: store invalid rows for every failing test (dbt 1.8+ key: data_tests)
 data_tests:
   +store_failures: true
   +schema: dbt_test_failures
 
-on-run-end:
-  - "{{ elementary.on_run_end() }}"
+# Do NOT add on-run-end: elementary.on_run_end() here — the Elementary package
+# already registers that hook. Duplicating it runs cleanup twice: the first call
+# drops anomaly temp metrics tables, the second fails with
+# "relation elementary.test_*__metrics__tmp_* does not exist".

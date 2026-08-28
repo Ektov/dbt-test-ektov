@@ -100,13 +100,14 @@ edr report --project-dir dbt_demo --profiles-dir . --profile-target dev
 # HTML-отчёт появится в edr_target/ (или путь, который выведет CLI)
 ```
 
-Либо внутри контейнера Airflow:
+Либо внутри контейнера Airflow (нужен профиль с `host: postgres` — сгенерируйте временный или правьте target; смонтированный `profiles.yml` с `localhost` из контейнера к Postgres не подключится):
 
 ```bash
 docker compose exec airflow-scheduler bash -c \
   'cd /opt/airflow/dbt_demo && /opt/airflow/dbt_venv/bin/edr report --profiles-dir . --profile-target dev'
 ```
 
+Предпочтительнее запускать `edr` **с хоста** (`--profiles-dir .` у корня репо, Postgres на `localhost:5432`).
 ## Намеренные ошибки в seeds
 
 | Файл | Ошибка | Какой тест падает |
@@ -135,11 +136,20 @@ python3 scripts/generate_seeds.py
 
 DAG id: **`dbt_cosmos_demo`**
 
+Порядок задач:
+
+1. **`init_elementary_tables`** — один `DbtRunLocalOperator` с `--select package:elementary` (создаёт таблицы Elementary без ~35 отдельных тасков в UI).
+2. **`dbt_project`** (`DbtTaskGroup`) — seeds / staging / marts / tests; `RenderConfig.exclude=["package:elementary"]`, чтобы пакет не дублировался в графе.
+
+Конфиг:
+
 - `ProjectConfig` → `/opt/airflow/dbt_demo`
 - `ExecutionConfig.dbt_executable_path` → `/opt/airflow/dbt_venv/bin/dbt` (отдельный venv; Cosmos без `[dbt-postgres]` extra)
-- `PostgresUserPasswordProfileMapping(conn_id="postgres_default")`
+- `PostgresUserPasswordProfileMapping(conn_id="postgres_default")` — **host=`postgres`** (имя сервиса Docker), не `localhost`
 - `TestBehavior.AFTER_ALL` — сначала модели, потом тесты
 - `install_deps: True` — `dbt deps` перед командами
+
+> **profiles.yml:** корневой файл с `host: localhost` — для dbt/edr **на хосте**. В контейнерах Cosmos **не** читает его для run/test: профиль строится из Airflow Connection `postgres_default`. Не запускайте сырой `dbt --profiles-dir /opt/airflow/dbt_demo` внутри контейнера — compose монтирует `profiles.yml` с `localhost`, и подключение к Postgres упадёт с `Connection refused`.
 
 Откройте UI → DAG `dbt_cosmos_demo` → Trigger.
 
@@ -279,6 +289,8 @@ LIMIT 50;
 | `Cosmos AF3 plugin requires Airflow >= 3.1` | Базовый образ должен быть **≥ 3.1** (сейчас `3.1.8-python3.12`) |
 | `POST /auth/token` → 401 при admin/admin | `admin:admin` в конфиге = роль, не пароль. Пароль — в `config/simple_auth_passwords.json` или в логе api-server (`Password for user 'admin': ...`) |
 | Все таски `failed` + `state mismatch` / `Connection refused` | В Airflow 3 задайте `AIRFLOW__CORE__EXECUTION_API_SERVER_URL=http://airflow-api-server:8080/execution/` (не localhost) |
+| `fct_orders.test` / on-run-end: `relation elementary.test_*__metrics__tmp_* does not exist` | Не дублируйте `on-run-end: elementary.on_run_end()` в `dbt_project.yml` — пакет Elementary уже регистрирует хук; второй вызов чистит temp-таблицы и падает. Также не ставьте `elementary: +materialized: table` |
+| `init_elementary_tables` / dbt: `connection to server at "localhost" … refused` | В Docker Postgres — сервис `postgres`, не `localhost`. Используйте Cosmos `ProfileMapping` / `postgres_default`; не полагайтесь на смонтированный `profiles.yml` с `host: localhost` |
 | `getpwuid(): uid not found: 501` / no username | В `.env` задать `AIRFLOW_UID=50000` (не `$(id -u)` на macOS), затем `docker compose up -d --force-recreate` |
 | `dbt deps` fail | Нужен интернет; повторить из `dbt_demo/` |
 | Anomalies «не о чём судить» | Нужна история; повторить прогоны |

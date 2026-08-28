@@ -1,6 +1,8 @@
-# dbt profile for local PostgreSQL sandbox
-# Inside Docker/Airflow Cosmos generates its own profile from postgres_default.
-# For host-side dbt/edr: copy to ~/.dbt/profiles.yml or set DBT_PROFILES_DIR.
+# dbt profile for local PostgreSQL sandbox (host-side: host=localhost).
+# Inside Docker/Airflow, Cosmos generates its own profile from postgres_default
+# (host=postgres). docker-compose also mounts ../profiles.yml over this path.
+# For host-side dbt/edr: copy to ~/.dbt/profiles.yml or set DBT_PROFILES_DIR
+# to the repo root (not this file alone if you need host=localhost).
 
 demo_dbt:
   target: dev
